@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shark Shark Menu</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700&display=swap');
+        body { font-family: 'Noto Sans TC', sans-serif; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo } = React;
+
+        // --- ICONS (Inline SVG components to replace lucide-react) ---
+        const IconBase = ({ children, className }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{children}</svg>
+        );
+        const ChefHat = ({ size = 24, className }) => <IconBase className={className}><path d="M6 13.87A4 4 0 0 1 7.41 6a5.11 5.11 0 0 1 1.05-1.54 5 5 0 0 1 7.08 0A5.11 5.11 0 0 1 16.59 6 4 4 0 0 1 18 13.87V21H6Z"/><line x1="6" x2="18" y1="17" y2="17"/></IconBase>;
+        const ShoppingCart = ({ size = 24, className }) => <IconBase className={className}><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></IconBase>;
+        const Coffee = ({ size = 24, className }) => <IconBase className={className}><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" x2="6" y1="2" y2="4"/><line x1="10" x2="10" y1="2" y2="4"/><line x1="14" x2="14" y1="2" y2="4"/></IconBase>;
+        const X = ({ size = 24, className }) => <IconBase className={className}><path d="M18 6 6 18"/><path d="m6 6 12 12"/></IconBase>;
+        const CheckCircle = ({ size = 24, className }) => <IconBase className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></IconBase>;
+        const Info = ({ size = 24, className }) => <IconBase className={className}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></IconBase>;
+        const AlertTriangle = ({ size = 24, className }) => <IconBase className={className}><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></IconBase>;
+        const Store = ({ size = 24, className }) => <IconBase className={className}><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/><path d="M22 7v3a2 2 0 0 1-2 2v0a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 16 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 12 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 8 12a2.7 2.7 0 0 1-1.59-.63.7.7 0 0 0-.82 0A2.7 2.7 0 0 1 4 12v0a2 2 0 0 1-2-2V7"/></IconBase>;
+        const MilkOff = ({ size = 24, className }) => <IconBase className={className}><path d="M8 2h8"/><path d="M9 2v2.79"/><path d="M15 2v2.79"/><path d="M17.65 17.65 19 19a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V7c0-1.1.9-2 2-2h1"/><path d="m2 2 20 20"/><path d="M8 8.8A2 2 0 0 1 9.24 7"/></IconBase>;
+
+        // --- TRANSLATION HELPER ---
+        const LANGUAGES = [
+            { code: 'en', label: 'English', flag: '🇺🇸' },
+            { code: 'tw', label: '中文', flag: '🇹🇼' },
+            { code: 'jp', label: '日本語', flag: '🇯🇵' },
+            { code: 'ko', label: '한국어', flag: '🇰🇷' }
+        ];
+
+        const UI_TEXT = {
+            cartTitle: { en: 'Your Order', tw: '您的訂單', jp: 'カート', ko: '주문 내역' },
+            emptyCart: { en: 'Your cart is empty.', tw: '購物車是空的', jp: 'カートは空です', ko: '장바구니가 비어 있습니다.' },
+            total: { en: 'Total', tw: '總計', jp: '合計', ko: '합계' },
+            confirm: { en: 'Confirm Order', tw: '確認點餐', jp: '注文を確定する', ko: '주문 확정' },
+            addToOrder: { en: 'Add to Order', tw: '加入訂單', jp: '追加する', ko: '주문 추가' },
+            chooseStyle: { en: 'Choose Style', tw: '選擇種類', jp: '麺・ご飯を選択', ko: '종류 선택' },
+            pasta: { en: 'Pasta', tw: '義大利麵', jp: 'パスタ', ko: '파스타' },
+            risotto: { en: 'Risotto', tw: '燉飯', jp: 'リゾット', ko: '리조또' },
+            addons: { en: 'Add-ons', tw: '加點', jp: 'トッピング', ko: '추가 선택' },
+            upgradeSet: { en: 'Upgrade to Set', tw: '升級套餐', jp: 'セットにする', ko: '세트 업그레이드' },
+            selectDrink15: { en: 'Select Drink ($15)', tw: '選擇飲品 ($15)', jp: 'ドリンク選択 ($15)', ko: '음료 선택 ($15)' },
+            selectSnack: { en: 'Select Snack', tw: '選擇炸物', jp: 'スナック選択', ko: '튀김 선택' },
+            selectDrink50: { en: 'Select Drink ($50)', tw: '選擇飲品 ($50)', jp: 'ドリンク選択 ($50)', ko: '음료 선택 ($50)' },
+            specialRequest: { en: 'Special Requests', tw: '備註', jp: '特記事項', ko: '요청 사항' },
+            notePlaceholder: { en: 'e.g. No onion', tw: '例：不加洋蔥', jp: '例：玉ねぎ抜き', ko: '예: 양파 빼고' },
+            fixedPasta: { en: 'Fixed: Pasta Only', tw: '固定：僅供義大利麵', jp: 'パスタのみ', ko: '파스타만 가능' },
+            fixedRisotto: { en: 'Fixed: Risotto Only', tw: '固定：僅供燉飯', jp: 'リゾットのみ', ko: '리조또만 가능' },
+            fixedSugarIce: { en: 'Fixed Sugar & Ice', tw: '甜度冰塊固定', jp: '甘さ・氷 固定', ko: '당도/얼음 고정' },
+            sugar: { en: 'Sugar', tw: '甜度', jp: '甘さ', ko: '당도' },
+            ice: { en: 'Ice', tw: '冰塊', jp: '氷', ko: '얼음' },
+            contents: { en: 'Contents', tw: '內容物', jp: '内容', ko: '내용물' },
+            table: { en: 'Table', tw: '桌號', jp: '卓番', ko: '테이블' },
+            tablePlaceholder: { en: 'Table #', tw: '桌號', jp: '卓番', ko: '테이블 번호' },
+            plsEnterTable: { en: 'Please enter table number', tw: '請輸入桌號', jp: '卓番を入力してください', ko: '테이블 번호를 입력하세요' },
+            startNew: { en: 'Start New Order', tw: '開始新訂單', jp: '新しい注文を始める', ko: '새로운 주문 시작' },
+            orderTicket: { en: 'ORDER TICKET', tw: '點餐單', jp: '注文票', ko: '주문표' },
+            takeout: { en: 'Takeout', tw: '外帶', jp: 'テイクアウト', ko: '포장' },
+            creamerWarning: { en: 'Contains non-dairy creamer', tw: '本產品使用奶精粉', jp: 'クリーミングパウダー使用', ko: '프리마(크림) 사용' },
+            
+            noticeTitle: { en: 'Restaurant Notices', tw: '用餐須知', jp: 'お店からのお知らせ', ko: '이용 안내' },
+            noticeMin: { en: 'Minimum charge $99', tw: '內用低消 $99', jp: '最低注文額 $99', ko: '1인 1메뉴 ($99 이상)' },
+            noticeCounter: { en: 'Please pay at counter', tw: '點餐後請至櫃台結帳', jp: 'お会計はカウンターで', ko: '카운터에서 선결제 해주세요' },
+            noticeTea: { en: 'Main dish includes Black Tea', tw: '點選主餐皆附紅茶', jp: 'メイン料理は紅茶付き', ko: '메인 메뉴 주문 시 홍차 제공' },
+            noticeAi: { en: 'Translations by AI may not be accurate', tw: 'AI翻譯不一定準確', jp: 'AI翻訳は正確でない場合があります', ko: 'AI 번역이 정확하지 않을 수 있습니다' },
+        };
+
+        const SUGAR_LEVELS = [
+            { id: 'no', name: 'No Sugar', nameTw: '無糖', nameJp: '無糖', nameKo: '무가당' },
+            { id: 'quarter', name: 'Slight', nameTw: '微糖', nameJp: '微糖', nameKo: '조금(30%)' },
+            { id: 'half', name: 'Half', nameTw: '半糖', nameJp: '半糖', nameKo: '반(50%)' },
+            { id: 'less', name: 'Less', nameTw: '少糖', nameJp: '少なめ', nameKo: '덜 달게(70%)' },
+            { id: 'regular', name: 'Regular', nameTw: '正常糖', nameJp: '普通', nameKo: '기본(100%)' },
+        ];
+
+        const ICE_LEVELS = [
+            { id: 'hot', name: 'Hot', nameTw: '熱', nameJp: 'ホット', nameKo: '따뜻하게' },
+            { id: 'no', name: 'No Ice', nameTw: '去冰', nameJp: '氷なし', nameKo: '얼음 없이' },
+            { id: 'quarter', name: 'Slight', nameTw: '微冰', nameJp: '氷少なめ', nameKo: '얼음 조금' },
+            { id: 'half', name: 'Half', nameTw: '半冰', nameJp: '氷半分', nameKo: '얼음 반' },
+            { id: 'less', name: 'Less', nameTw: '少冰', nameJp: '氷少なめ', nameKo: '얼음 적게' },
+            { id: 'regular', name: 'Regular', nameTw: '正常冰', nameJp: '氷普通', nameKo: '얼음 기본' },
+        ];
+
+        const BINARY_ICE_LEVELS = [
+            { id: 'hot', name: 'Hot', nameTw: '熱', nameJp: 'ホット', nameKo: '따뜻하게' },
+            { id: 'regular', name: 'Iced', nameTw: '冰', nameJp: 'アイス', nameKo: '아이스' },
+        ];
+
+        const CATEGORIES = [
+            { id: 'white', name: 'Creamy White Sauce', nameTw: '奶油白醬系列', nameJp: 'クリームソース', nameKo: '크림 소스', type: 'pasta' },
+            { id: 'pesto', name: 'Handmade Basil Pesto', nameTw: '手工羅勒青醬系列', nameJp: 'バジルソース', nameKo: '바질 페스토', type: 'pasta' },
+            { id: 'red', name: 'Tomato Red Sauce', nameTw: '番茄紅醬系列', nameJp: 'トマトソース', nameKo: '토마토 소스', type: 'pasta' },
+            { id: 'pink', name: 'Pink Sauce (Red+White)', nameTw: '粉紅醬系列', nameJp: 'ピンクソース (トマトクリーム)', nameKo: '로제 소스', type: 'pasta' },
+            { id: 'pumpkin', name: 'Handmade Pumpkin', nameTw: '手工南瓜系列', nameJp: '手作りカボチャソース', nameKo: '단호박 소스', type: 'pasta' },
+            { id: 'curry_pasta', name: 'Japanese Curry (Pasta/Risotto)', nameTw: '日系咖哩系列 (義大利麵/燉飯)', nameJp: '日本風カレー (パスタ/リゾット)', nameKo: '일본식 카레 (파스타/리조또)', type: 'pasta' },
+            { id: 'chef', name: "Chef's Specials", nameTw: '主廚特殊系列', nameJp: 'シェフの特製', nameKo: '셰프 스페셜', type: 'chef_special' },
+            { id: 'curry_rice', name: 'Japanese Curry Rice', nameTw: '日系咖哩飯系列', nameJp: '日本風カレーライス', nameKo: '일본식 카레 라이스', type: 'rice_only' },
+            { id: 'snacks', name: 'Fried Snacks', nameTw: '炸物類', nameJp: '揚げ物', nameKo: '튀김류', type: 'simple' },
+            { id: 'drinks', name: 'Drinks', nameTw: '飲品類', nameJp: 'ドリンク', nameKo: '음료', type: 'drink' },
+            { id: 'soup', name: 'Soup', nameTw: '湯類', nameJp: 'スープ', nameKo: '스프', type: 'simple' }
+        ];
+
+        const MENU_ITEMS = {
+            white: [
+                { id: 'w1', name: 'Original White Sauce', nameTw: '白醬原味', nameJp: 'プレーン', nameKo: '기본 크림', price: 99 },
+                { id: 'w2', name: 'Smoked Chicken', nameTw: '白醬燻雞', nameJp: '燻製チキン', nameKo: '훈제 치킨', price: 120 },
+                { id: 'w3', name: 'Bacon', nameTw: '白醬培根', nameJp: 'ベーコン', nameKo: '베이컨', price: 130 },
+                { id: 'w4', name: 'Tender Chicken', nameTw: '白醬嫩雞', nameJp: '柔らかチキン', nameKo: '텐더 치킨', price: 145 },
+                { id: 'w5', name: 'Fried Pork Cutlet', nameTw: '白醬炸豬排', nameJp: 'トンカツ', nameKo: '돈까스', price: 150 },
+                { id: 'w6', name: 'Fried Chicken Cutlet', nameTw: '白醬炸雞排', nameJp: 'チキンカツ', nameKo: '치킨까스', price: 150 },
+                { id: 'w7', name: 'Clams', nameTw: '白醬蛤蜊', nameJp: 'アサリ', nameKo: '조개(바지락)', price: 150 },
+                { id: 'w8', name: 'Scallop & Seafood', nameTw: '白醬扇貝海鮮', nameJp: 'ホタテとシーフード', nameKo: '가리비 & 해산물', price: 180 },
+            ],
+            pesto: [
+                { id: 'p1', name: 'Original Pesto', nameTw: '青醬原味', nameJp: 'プレーン', nameKo: '기본 바질', price: 105 },
+                { id: 'p2', name: 'Smoked Chicken', nameTw: '青醬燻雞', nameJp: '燻製チキン', nameKo: '훈제 치킨', price: 125 },
+                { id: 'p3', name: 'Bacon', nameTw: '青醬培根', nameJp: 'ベーコン', nameKo: '베이컨', price: 135 },
+                { id: 'p4', name: 'Tender Chicken', nameTw: '青醬嫩雞', nameJp: '柔らかチキン', nameKo: '텐더 치킨', price: 150 },
+                { id: 'p5', name: 'Fried Pork Cutlet', nameTw: '青醬炸豬排', nameJp: 'トンカツ', nameKo: '돈까스', price: 155 },
+                { id: 'p6', name: 'Fried Chicken Cutlet', nameTw: '青醬炸雞排', nameJp: 'チキンカツ', nameKo: '치킨까스', price: 155 },
+                { id: 'p7', name: 'Clams', nameTw: '青醬蛤蜊', nameJp: 'アサリ', nameKo: '조개(바지락)', price: 155 },
+                { id: 'p8', name: 'Scallop & Seafood', nameTw: '青醬扇貝海鮮', nameJp: 'ホタテとシーフード', nameKo: '가리비 & 해산물', price: 185 },
+            ],
+            red: [
+                { id: 'r1', name: 'Original Red Sauce', nameTw: '紅醬原味', nameJp: 'プレーン', nameKo: '기본 토마토', price: 105 },
+                { id: 'r2', name: 'Smoked Chicken', nameTw: '紅醬燻雞', nameJp: '燻製チキン', nameKo: '훈제 치킨', price: 125 },
+                { id: 'r3', name: 'Bacon', nameTw: '紅醬培根', nameJp: 'ベーコン', nameKo: '베이컨', price: 135 },
+                { id: 'r4', name: 'Tender Chicken', nameTw: '紅醬嫩雞', nameJp: '柔らかチキン', nameKo: '텐더 치킨', price: 150 },
+                { id: 'r5', name: 'Fried Pork Cutlet', nameTw: '紅醬炸豬排', nameJp: 'トンカツ', nameKo: '돈까스', price: 155 },
+                { id: 'r6', name: 'Fried Chicken Cutlet', nameTw: '紅醬炸雞排', nameJp: 'チキンカツ', nameKo: '치킨까스', price: 155 },
+                { id: 'r7', name: 'Clams', nameTw: '紅醬蛤蜊', nameJp: 'アサリ', nameKo: '조개(바지락)', price: 155 },
+                { id: 'r8', name: 'Scallop & Seafood', nameTw: '紅醬扇貝海鮮', nameJp: 'ホタテとシーフード', nameKo: '가리비 & 해산물', price: 185 },
+                { id: 'r9', name: 'Beef', nameTw: '紅醬牛肉', nameJp: '牛肉', nameKo: '소고기', price: 205 },
+            ],
+            pink: [
+                { id: 'pk1', name: 'Original Pink Sauce', nameTw: '粉醬原味', nameJp: 'プレーン', nameKo: '기본 로제', price: 99 },
+                { id: 'pk2', name: 'Smoked Chicken', nameTw: '粉醬燻雞', nameJp: '燻製チキン', nameKo: '훈제 치킨', price: 120 },
+                { id: 'pk3', name: 'Bacon', nameTw: '粉醬培根', nameJp: 'ベーコン', nameKo: '베이컨', price: 130 },
+                { id: 'pk4', name: 'Tender Chicken', nameTw: '粉醬嫩雞', nameJp: '柔らかチキン', nameKo: '텐더 치킨', price: 145 },
+                { id: 'pk5', name: 'Fried Pork Cutlet', nameTw: '粉醬炸豬排', nameJp: 'トンカツ', nameKo: '돈까스', price: 150 },
+                { id: 'pk6', name: 'Fried Chicken Cutlet', nameTw: '粉醬炸雞排', nameJp: 'チキンカツ', nameKo: '치킨까스', price: 150 },
+                { id: 'pk7', name: 'Clams', nameTw: '粉醬蛤蜊', nameJp: 'アサリ', nameKo: '조개(바지락)', price: 150 },
+                { id: 'pk8', name: 'Scallop & Seafood', nameTw: '粉醬扇貝海鮮', nameJp: 'ホタテとシーフード', nameKo: '가리비 & 해산물', price: 180 },
+                { id: 'pk9', name: 'Beef', nameTw: '粉醬牛肉', nameJp: '牛肉', nameKo: '소고기', price: 200 },
+            ],
+            pumpkin: [
+                { id: 'pu1', name: 'Original Pumpkin', nameTw: '南瓜原味', nameJp: 'プレーン', nameKo: '기본 단호박', price: 99 },
+                { id: 'pu2', name: 'Smoked Chicken', nameTw: '南瓜燻雞', nameJp: '燻製チキン', nameKo: '훈제 치킨', price: 120 },
+                { id: 'pu3', name: 'Bacon', nameTw: '南瓜培根', nameJp: 'ベーコン', nameKo: '베이컨', price: 130 },
+                { id: 'pu4', name: 'Tender Chicken', nameTw: '南瓜嫩雞', nameJp: '柔らかチキン', nameKo: '텐더 치킨', price: 145 },
+                { id: 'pu5', name: 'Fried Pork Cutlet', nameTw: '南瓜炸豬排', nameJp: 'トンカツ', nameKo: '돈까스', price: 150 },
+                { id: 'pu6', name: 'Fried Chicken Cutlet', nameTw: '南瓜炸雞排', nameJp: 'チキンカツ', nameKo: '치킨까스', price: 150 },
+                { id: 'pu7', name: 'Clams', nameTw: '南瓜蛤蜊', nameJp: 'アサリ', nameKo: '조개(바지락)', price: 150 },
+            ],
+            curry_pasta: [
+                { id: 'cp1', name: 'Original Curry', nameTw: '咖哩原味', nameJp: 'プレーン', nameKo: '기본 카레', price: 99 },
+                { id: 'cp2', name: 'Smoked Chicken', nameTw: '咖哩燻雞', nameJp: '燻製チキン', nameKo: '훈제 치킨', price: 120 },
+                { id: 'cp3', name: 'Bacon', nameTw: '咖哩培根', nameJp: 'ベーコン', nameKo: '베이컨', price: 130 },
+                { id: 'cp4', name: 'Tender Chicken', nameTw: '咖哩嫩雞', nameJp: '柔らかチキン', nameKo: '텐더 치킨', price: 145 },
+                { id: 'cp5', name: 'Fried Pork Cutlet', nameTw: '咖哩炸豬排', nameJp: 'トンカツ', nameKo: '돈까스', price: 150 },
+                { id: 'cp6', name: 'Fried Chicken Cutlet', nameTw: '咖哩炸雞排', nameJp: 'チキンカツ', nameKo: '치킨까스', price: 150 },
+            ],
+            chef: [
+                { id: 'ch1', name: 'Garlic Mushroom', nameTw: '香蒜菇菇', nameJp: 'ガーリックキノコ', nameKo: '갈릭 버섯', price: 135 },
+                { id: 'ch2', name: 'Olive Oil Veggie Mushroom', nameTw: '橄欖油鮮蔬菇菇', nameJp: 'オリーブオイル野菜キノコ', nameKo: '올리브 오일 야채 버섯', price: 135 },
+                { id: 'ch3', name: 'Garlic Tender Chicken', nameTw: '香蒜嫩雞', nameJp: 'ガーリックチキン', nameKo: '갈릭 텐더 치킨', price: 145 },
+                { id: 'ch4', name: 'Garlic Clams', nameTw: '香蒜蛤蜊', nameJp: 'ガーリックアサリ', nameKo: '갈릭 조개', price: 150 },
+                { id: 'ch5', name: 'Garlic Scallop Seafood', nameTw: '香蒜扇貝海鮮', nameJp: 'ガーリックホタテシーフード', nameKo: '갈릭 가리비 해산물', price: 180 },
+                { id: 'ch6', name: 'Garlic Chicken Cutlet', nameTw: '香蒜雞排', nameJp: 'ガーリックチキンカツ', nameKo: '갈릭 치킨까스', price: 150 },
+                { id: 'ch7', name: 'Garlic Chicken Wings', nameTw: '香蒜雞翅', nameJp: 'ガーリック手羽先', nameKo: '갈릭 닭날개', price: 150 },
+                { id: 'ch8', name: 'Garlic Pork Cutlet', nameTw: '香蒜豬排', nameJp: 'ガーリックトンカツ', nameKo: '갈릭 돈까스', price: 150 },
+                { id: 'ch9', name: 'Sesame Oil Matsusaka Pork', nameTw: '麻油松阪豬', nameJp: 'ごま油松阪豚', nameKo: '참기름 항정살', price: 200 },
+            ],
+            curry_rice: [
+                { id: 'cr1', name: 'Japanese Curry Rice', nameTw: '日式咖哩飯', nameJp: 'カレーライス', nameKo: '일본식 카레 라이스', price: 100 },
+                { id: 'cr2', name: 'Tender Chicken Curry Rice', nameTw: '咖哩嫩雞飯', nameJp: 'チキンカレー', nameKo: '텐더 치킨 카레', price: 130 },
+                { id: 'cr3', name: 'Nuggets Curry Rice', nameTw: '咖哩雞塊飯', nameJp: 'ナゲットカレー', nameKo: '너겟 카레', price: 130 },
+                { id: 'cr4', name: 'Pork Cutlet Curry Rice', nameTw: '咖哩豬排飯', nameJp: 'カツカレー (豚)', nameKo: '돈까스 카레', price: 135 },
+                { id: 'cr5', name: 'Chicken Cutlet Curry Rice', nameTw: '咖哩雞排飯', nameJp: 'チキンカツカレー', nameKo: '치킨까스 카레', price: 135 },
+                { id: 'cr6', name: 'Chicken Wings Curry Rice', nameTw: '咖哩雞翅飯', nameJp: '手羽先カレー', nameKo: '닭날개 카레', price: 150 },
+                { id: 'cr7', name: 'Diced Beef Curry Rice', nameTw: '嫩煎骰子牛咖哩飯', nameJp: 'サイコロステーキカレー', nameKo: '큐브 스테이크 카레', price: 170 },
+            ],
+            snacks: [
+                { id: 's1', name: 'Fries', nameTw: '現炸脆薯', nameJp: 'フライドポテト', nameKo: '감자튀김', price: 40 },
+                { id: 's2', name: 'Sweet Potato Fries', nameTw: '現炸地瓜脆薯', nameJp: 'サツマイモフライ', nameKo: '고구마 튀김', price: 40 },
+                { id: 's3', name: 'Sesame Broccoli', nameTw: '胡麻花椰菜', nameJp: 'ごまブロッコリー', nameKo: '참깨 브로콜리', price: 45 },
+                { id: 's4', name: 'Chicken Nuggets (6pcs)', nameTw: '現炸麥克雞塊6塊', nameJp: 'チキンナゲット (6個)', nameKo: '치킨 너겟 (6개)', price: 55 },
+                { id: 's5', name: 'Onion Rings (6pcs)', nameTw: '現炸洋蔥圈6圈', nameJp: 'オニオンリング (6個)', nameKo: '양파링 (6개)', price: 55 },
+                { id: 's6', name: 'Fried Chicken Wings (3pcs)', nameTw: '現炸雞翅(3隻)', nameJp: 'フライドチキン手羽先 (3本)', nameKo: '닭날개 튀김 (3개)', price: 60 },
+                { id: 's7', name: 'Popcorn Chicken', nameTw: '現炸雞米花', nameJp: 'ポップコーンチキン', nameKo: '팝콘 치킨', price: 60 },
+                { id: 's8', name: 'Cheese Sticks', nameTw: '現炸乳酪條', nameJp: 'チーズスティック', nameKo: '치즈 스틱', price: 70 },
+                { 
+                    id: 's9', name: 'Small Platter', nameTw: '炸物拼盤(小)', nameJp: '揚げ物盛り合わせ (小)', nameKo: '모둠 튀김 (소)', price: 150, 
+                    description: { en: 'Popcorn Chicken, Onion Rings, Fries, Nuggets', tw: '雞米花、洋蔥圈、脆薯、雞塊', jp: 'ポップコーンチキン、オニオンリング、ポテト、ナゲット', ko: '팝콘치킨, 양파링, 감자튀김, 너겟' } 
+                },
+                { 
+                    id: 's10', name: 'Large Platter', nameTw: '炸物拼盤(大)', nameJp: '揚げ物盛り合わせ (大)', nameKo: '모둠 튀김 (대)', price: 250, 
+                    description: { en: 'Popcorn Ckn, Onion Rings, Swt. Potato, Fries, Nuggets, Cheese Sticks, Wings', tw: '雞米花、洋蔥圈、地瓜、脆薯、雞塊、乳酪條、雞翅', jp: 'ポップコーンチキン、オニオンリング、サツマイモ、ポテト、ナゲット、チーズスティック、手羽先', ko: '팝콘치킨, 양파링, 고구마, 감자튀김, 너겟, 치즈스틱, 닭날개' } 
+                },
+            ],
+            drinks: [
+                { id: 'd1', name: 'Shark Black Tea', nameTw: '鯊鯊紅茶', nameJp: 'シャーク紅茶', nameKo: '샤크 홍차', price: 30 },
+                { id: 'd2', name: 'Shark Milk Tea', nameTw: '鯊鯊奶茶', nameJp: 'シャークミルクティー', nameKo: '샤크 밀크티', price: 40 },
+                { id: 'd3', name: 'Peach Juice', nameTw: '水蜜桃汁', nameJp: 'ピーチジュース', nameKo: '복숭아 주스', price: 40 },
+                { id: 'd4', name: 'OREO Milk Tea', nameTw: 'OREO 奶茶', nameJp: 'オレオミルクティー', nameKo: '오레오 밀크티', price: 50 },
+                { id: 'd5', name: 'Pearl Milk Tea', nameTw: '珍珠奶茶', nameJp: 'タピオカミルクティー', nameKo: '버블티', price: 55 },
+                { id: 'd6', name: 'Americano', nameTw: '美式咖啡', nameJp: 'アメリカンコーヒー', nameKo: '아메리카노', price: 45 },
+                { id: 'd7', name: 'Latte', nameTw: '拿鐵咖啡', nameJp: 'カフェラテ', nameKo: '카페 라떼', price: 60 },
+                { id: 'd8_1', name: 'Vinegar (Grape)', nameTw: '十全果醋(葡萄)', nameJp: 'フルーツ酢 (ブドウ)', nameKo: '과일 식초 (포도)', price: 30, noCustom: true },
+                { id: 'd8_2', name: 'Vinegar (Pineapple)', nameTw: '十全果醋(鳳梨)', nameJp: 'フルーツ酢 (パイナップル)', nameKo: '과일 식초 (파인애플)', price: 30, noCustom: true },
+                { id: 'd8_3', name: 'Vinegar (Apple)', nameTw: '十全果醋(蘋果)', nameJp: 'フルーツ酢 (リンゴ)', nameKo: '과일 식초 (사과)', price: 30, noCustom: true },
+                { id: 'd9_1', name: 'Coke', nameTw: '可口可樂', nameJp: 'コーラ', nameKo: '콜라', price: 15, noCustom: true },
+                { id: 'd9_2', name: 'Sprite', nameTw: '雪碧', nameJp: 'スプライト', nameKo: '스프라이트', price: 15, noCustom: true },
+                { id: 'd9_3', name: 'Fanta', nameTw: '芬達', nameJp: 'ファンタ', nameKo: '환타', price: 15, noCustom: true },
+                { id: 'd9_4', name: 'Grape Soda', nameTw: '葡萄蘇打', nameJp: 'グレープソーダ', nameKo: '포도 소다', price: 20, noCustom: true },
+                { id: 'd_ice', name: 'Iced Coffee', nameTw: '招牌冰咖啡', nameJp: 'アイスコーヒー', nameKo: '아이스 커피', price: 50, iceConfig: 'cold', hasCreamer: true },
+                { id: 'd_hot', name: 'Special Hot Coffee', nameTw: '鯊鯊熱特調', nameJp: 'ホットコーヒー', nameKo: '따뜻한 커피', price: 50, iceConfig: 'hot', hasCreamer: true },
+            ],
+            soup: [
+                { id: 'sp1', name: 'Daily Soup', nameTw: '鯊鯊今日濃湯', nameJp: '本日のスープ', nameKo: '오늘의 스프', price: 40 },
+                { id: 'sp2', name: 'Soup + 2 Bread', nameTw: '濃湯+2片軟法', nameJp: 'スープ+パン2枚', nameKo: '스프 + 빵 2조각', price: 50 },
+            ]
+        };
+
+        const ADDONS = [
+            { id: 'add_egg', name: 'Add Egg', nameTw: '加蛋', nameJp: '卵追加', nameKo: '계란 추가', price: 15 },
+            { id: 'gratin', name: 'Gratin (Baked)', nameTw: '焗烤', nameJp: 'グラタン (チーズ焼き)', nameKo: '그라탕 (치즈 추가)', price: 30 },
+            { id: 'extra_rice', name: 'Extra Rice', nameTw: '加飯', nameJp: 'ご飯大盛り', nameKo: '밥 추가', price: 10 },
+            { id: 'extra_noodle', name: 'Extra Noodle', nameTw: '加麵', nameJp: '麺大盛り', nameKo: '면 추가', price: 20 },
+            { id: 'extra_sauce', name: 'Extra Sauce', nameTw: '醬多', nameJp: 'ソース多め', nameKo: '소스 많이', price: 10 },
+            { id: 'spicy', name: 'Spicy', nameTw: '加辣', nameJp: '辛くする', nameKo: '맵게', price: 0 },
+        ];
+
+        const SET_CHOICE_LISTS = {
+            drinks_15: [
+                { id: 's_am', name: 'Small Americano', nameTw: '小杯美式咖啡', nameJp: 'アメリカン (S)', nameKo: '아메리카노 (S)', binaryIce: true },
+                { id: 's_lem', name: 'Lemon Black Tea', nameTw: '飛想茶檸檬紅茶', nameJp: 'レモンティー', nameKo: '레몬 홍차', noCustom: true },
+                { id: 's_coke', name: 'Coke', nameTw: '可口可樂', nameJp: 'コーラ', nameKo: '콜라', noCustom: true },
+                { id: 's_spr', name: 'Sprite', nameTw: '雪碧', nameJp: 'スプライト', nameKo: '스프라이트', noCustom: true },
+                { id: 's_fan', name: 'Fanta', nameTw: '芬達', nameJp: 'ファンタ', nameKo: '환타', noCustom: true },
+                { id: 's_grap', name: 'Grape Soda', nameTw: '美粒果葡萄蘇打', nameJp: 'グレープソーダ', nameKo: '포도 소다', noCustom: true },
+                { id: 's_vin_g', name: 'Vinegar (Grape)', nameTw: '十全果醋(葡萄)', nameJp: 'フルーツ酢 (ブドウ)', nameKo: '식초 음료 (포도)', noCustom: true },
+                { id: 's_vin_p', name: 'Vinegar (Pineapple)', nameTw: '十全果醋(鳳梨)', nameJp: 'フルーツ酢 (パイン)', nameKo: '식초 음료 (파인애플)', noCustom: true },
+                { id: 's_vin_a', name: 'Vinegar (Apple)', nameTw: '十全果醋(蘋果)', nameJp: 'フルーツ酢 (リンゴ)', nameKo: '식초 음료 (사과)', noCustom: true },
+            ],
+            snacks_B: [
+                { id: 's_fri', name: 'Fries', nameTw: '脆薯', nameJp: 'フライドポテト', nameKo: '감자튀김' },
+                { id: 's_nug', name: 'Nuggets (4pcs)', nameTw: '麥克雞塊4塊', nameJp: 'ナゲット (4個)', nameKo: '너겟 (4개)' },
+                { id: 's_oni', name: 'Onion Rings (4pcs)', nameTw: '洋蔥圈4圈', nameJp: 'オニオンリング (4個)', nameKo: '양파링 (4개)' },
+                { id: 's_swp', name: 'Swt. Potato Fries', nameTw: '地瓜脆薯', nameJp: 'サツマイモフライ', nameKo: '고구마 튀김' },
+                { id: 's_bro', name: 'Sesame Broccoli', nameTw: '胡麻花椰菜', nameJp: 'ごまブロッコリー', nameKo: '참깨 브로콜리' },
+            ],
+            drinks_50: [
+                { id: 'd_blk', name: 'Shark Black Tea', nameTw: '鯊鯊紅茶', nameJp: 'シャーク紅茶', nameKo: '샤크 홍차' },
+                { id: 'd_pch', name: 'Peach Juice', nameTw: '水蜜桃汁', nameJp: 'ピーチジュース', nameKo: '복숭아 주스' },
+                { id: 'd_mil', name: 'Shark Milk Tea', nameTw: '鯊鯊奶茶', nameJp: 'シャークミルクティー', nameKo: '샤크 밀크티' },
+                { id: 'd_ome', name: 'Americano', nameTw: '美式咖啡', nameJp: 'アメリカン', nameKo: '아메리카노' },
+                { id: 'd_ice', name: 'Iced Coffee', nameTw: '招牌冰咖啡', nameJp: 'アイスコーヒー', nameKo: '아이스 커피', iceConfig: 'cold', hasCreamer: true },
+                { id: 'd_hot', name: 'Special Hot Coffee', nameTw: '鯊鯊熱特調', nameJp: 'ホットコーヒー', nameKo: '따뜻한 커피', iceConfig: 'hot', hasCreamer: true },
+                { id: 'd_vin', name: 'Fruit Vinegar', nameTw: '十全果醋', nameJp: 'フルーツ酢', nameKo: '과일 식초', noCustom: true },
+            ]
+        };
+
+        const SET_OPTIONS = [
+            { id: 'none', name: 'No Set', nameTw: '單點', nameJp: '単品', nameKo: '단품', price: 0 },
+            { id: 'A', name: 'Set A: $15 Drink', nameTw: 'A套餐: $15飲品', nameJp: 'Aセット ($15ドリンク)', nameKo: 'A세트 ($15 음료)', price: 15, needsDrink15: true },
+            { id: 'B', name: 'Set B: Snack Choice', nameTw: 'B套餐: 炸物五選一', nameJp: 'Bセット (スナック)', nameKo: 'B세트 (튀김 택1)', price: 30, needsSnack: true },
+            { id: 'C', name: 'Set C: Snack + Drink', nameTw: 'C套餐: 炸物+飲品', nameJp: 'Cセット (スナック+ドリンク)', nameKo: 'C세트 (튀김+음료)', price: 60, needsSnack: true, needsDrink50: true },
+            { id: 'D', name: 'Set D: Wings + Drink', nameTw: 'D套餐: 雞翅+飲品', nameJp: 'Dセット (手羽先+ドリンク)', nameKo: 'D세트 (닭날개+음료)', price: 100, needsDrink50: true },
+        ];
+
+        const DrinkCustomizer = ({ label, value, options, onChange, t }) => (
+            <div className="mb-2">
+                <label className="text-xs font-bold text-gray-500 uppercase block mb-1">{label}</label>
+                <div className="flex flex-wrap gap-1">
+                    {options.map(opt => (
+                        <button
+                            key={opt.id}
+                            onClick={() => onChange(opt.id)}
+                            className={`px-2 py-1 text-xs rounded border transition-colors ${
+                                value === opt.id 
+                                    ? 'bg-blue-600 text-white border-blue-600' 
+                                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                            }`}
+                        >
+                            {t(opt)}
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
+
+        const ItemModal = ({ item, categoryType, onClose, onAddToCart, language, t }) => {
+            const isGarlic = item.nameTw.includes('香蒜');
+            const isSesame = item.nameTw.includes('麻油');
+            
+            const defaultMainType = () => {
+                if (categoryType === 'chef_special') {
+                    if (isSesame) return 'Risotto';
+                    if (isGarlic) return 'Pasta';
+                    return 'Pasta';
+                }
+                if (categoryType === 'pasta') return 'Pasta';
+                if (categoryType === 'rice_only') return 'Rice';
+                return 'Standard';
+            };
+
+            const [mainType, setMainType] = useState(defaultMainType());
+            const [selectedAddons, setSelectedAddons] = useState([]);
+            const [selectedSet, setSelectedSet] = useState('none');
+            const [note, setNote] = useState('');
+            
+            // Drink Customization States (Main)
+            const initialMainIce = item.iceConfig === 'hot' ? 'hot' : (item.iceConfig === 'cold' ? 'regular' : 'regular');
+            const [drinkSugar, setDrinkSugar] = useState('regular');
+            const [drinkIce, setDrinkIce] = useState(initialMainIce);
+
+            const [setDrink15, setSetDrink15] = useState(SET_CHOICE_LISTS.drinks_15[0].id);
+            const [setSnack, setSetSnack] = useState(SET_CHOICE_LISTS.snacks_B[0].id);
+            const [setDrink50, setSetDrink50] = useState(SET_CHOICE_LISTS.drinks_50[0].id);
+            
+            const [setDrink15Sugar, setSetDrink15Sugar] = useState('regular');
+            const [setDrink15Ice, setSetDrink15Ice] = useState('regular');
+            const [setDrink50Sugar, setSetDrink50Sugar] = useState('regular');
+            const [setDrink50Ice, setSetDrink50Ice] = useState('regular');
+
+            const currentSetConfig = SET_OPTIONS.find(s => s.id === selectedSet);
+            const isDrinkCategory = categoryType === 'drink';
+            const isCustomizableDrink = isDrinkCategory && !item.noCustom;
+            
+            const selectedSetDrink15Obj = SET_CHOICE_LISTS.drinks_15.find(d => d.id === setDrink15);
+            const isSetDrink15Custom = selectedSetDrink15Obj && !selectedSetDrink15Obj.noCustom;
+            const isSetDrink15Binary = selectedSetDrink15Obj && selectedSetDrink15Obj.binaryIce;
+            
+            const selectedSetDrink50Obj = SET_CHOICE_LISTS.drinks_50.find(d => d.id === setDrink50);
+            const isSetDrink50Custom = selectedSetDrink50Obj && !selectedSetDrink50Obj.noCustom;
+
+            const getIceOptions = (config) => {
+                if (config === 'hot') return ICE_LEVELS.filter(i => i.id === 'hot');
+                if (config === 'cold') return ICE_LEVELS.filter(i => i.id !== 'hot');
+                return ICE_LEVELS;
+            };
+
+            const handleSetDrink50Change = (id) => {
+                setSetDrink50(id);
+                const drinkObj = SET_CHOICE_LISTS.drinks_50.find(d => d.id === id);
+                if (drinkObj?.iceConfig === 'hot') setSetDrink50Ice('hot');
+                else if (drinkObj?.iceConfig === 'cold' && setSetDrink50Ice === 'hot') setSetDrink50Ice('regular');
+            };
+
+            const toggleAddon = (addonId) => {
+                if (selectedAddons.includes(addonId)) {
+                    setSelectedAddons(selectedAddons.filter(id => id !== addonId));
+                } else {
+                    setSelectedAddons([...selectedAddons, addonId]);
+                }
+            };
+
+            const calculateTotal = () => {
+                let total = item.price;
+                selectedAddons.forEach(id => {
+                    const addon = ADDONS.find(a => a.id === id);
+                    if (addon) total += addon.price;
+                });
+                const setOpt = SET_OPTIONS.find(s => s.id === selectedSet);
+                if (setOpt) total += setOpt.price;
+                return total;
+            };
+
+            const handleConfirm = () => {
+                let setChoices = {};
+                
+                if (currentSetConfig?.needsDrink15) {
+                    const choice = SET_CHOICE_LISTS.drinks_15.find(d => d.id === setDrink15);
+                    let details = { 
+                        name: choice.name, 
+                        nameTw: choice.nameTw, 
+                        nameJp: choice.nameJp, 
+                        nameKo: choice.nameKo,
+                        customerLang: language 
+                    };
+                    if (isSetDrink15Custom) {
+                        details.sugar = SUGAR_LEVELS.find(s => s.id === setDrink15Sugar);
+                        const options = isSetDrink15Binary ? BINARY_ICE_LEVELS : ICE_LEVELS;
+                        details.ice = options.find(i => i.id === setDrink15Ice);
+                    }
+                    setChoices.drink = details;
+                }
+
+                if (currentSetConfig?.needsSnack) {
+                    const choice = SET_CHOICE_LISTS.snacks_B.find(s => s.id === setSnack);
+                    setChoices.snack = { 
+                        name: choice.name, 
+                        nameTw: choice.nameTw, 
+                        nameJp: choice.nameJp, 
+                        nameKo: choice.nameKo,
+                        customerLang: language 
+                    };
+                }
+
+                if (currentSetConfig?.needsDrink50) {
+                    const choice = SET_CHOICE_LISTS.drinks_50.find(d => d.id === setDrink50);
+                    let details = { 
+                        name: choice.name, 
+                        nameTw: choice.nameTw, 
+                        nameJp: choice.nameJp, 
+                        nameKo: choice.nameKo,
+                        customerLang: language 
+                    };
+                    if (isSetDrink50Custom) {
+                        details.sugar = SUGAR_LEVELS.find(s => s.id === setDrink50Sugar);
+                        const options = getIceOptions(choice.iceConfig);
+                        details.ice = options.find(i => i.id === setDrink50Ice) || options[0];
+                    }
+                    setChoices.drink50 = details;
+                }
+
+                let mainCustomization = {};
+                if (isCustomizableDrink) {
+                    mainCustomization.sugar = SUGAR_LEVELS.find(s => s.id === drinkSugar);
+                    const options = getIceOptions(item.iceConfig);
+                    mainCustomization.ice = options.find(i => i.id === drinkIce) || options[0];
+                }
+
+                onAddToCart({
+                    ...item,
+                    uniqueId: Date.now(),
+                    mainType,
+                    mainTypeTw: mainType === 'Pasta' ? '義大利麵' : (mainType === 'Risotto' ? '燉飯' : ''),
+                    selectedAddons: selectedAddons.map(id => ADDONS.find(a => a.id === id)),
+                    selectedSet: SET_OPTIONS.find(s => s.id === selectedSet),
+                    setChoices,
+                    mainCustomization,
+                    note,
+                    orderLanguage: language 
+                });
+                onClose();
+            };
+
+            const showSetOptions = ['pasta', 'rice_only', 'chef_special'].includes(categoryType);
+
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
+                        <div className="p-4 border-b flex justify-between items-center sticky top-0 bg-white z-10">
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-800">{t(item)}</h3>
+                                <p className="text-sm text-gray-500">{item.nameTw}</p>
+                            </div>
+                            <button onClick={onClose} className="p-2 bg-gray-100 rounded-full hover:bg-gray-200">
+                                <X size={20} />
+                            </button>
+                        </div>
+
+                        <div className="p-4 space-y-6 flex-grow">
+                            {item.description && (
+                                <div className="bg-orange-50 p-3 rounded-lg text-sm text-gray-700 border border-orange-100 flex gap-2">
+                                    <Info size={16} className="text-orange-400 mt-1 flex-shrink-0" />
+                                    <div>
+                                        <div className="font-bold text-orange-800 mb-1">{UI_TEXT.contents[language]}:</div>
+                                        {language === 'en' ? item.description.en : 
+                                        language === 'jp' ? item.description.jp :
+                                        language === 'ko' ? item.description.ko : item.description.tw}
+                                    </div>
+                                </div>
+                            )}
+
+                            {item.hasCreamer && (
+                                <div className="bg-yellow-50 p-3 rounded-lg text-sm text-yellow-800 border border-yellow-200 flex gap-2">
+                                    <MilkOff size={16} className="text-yellow-600 mt-1 flex-shrink-0" />
+                                    <div className="font-bold">
+                                        {UI_TEXT.creamerWarning[language]}
+                                    </div>
+                                </div>
+                            )}
+
+                            {(categoryType === 'pasta' || categoryType === 'chef_special') && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">{UI_TEXT.chooseStyle[language]}</label>
+                                    {isGarlic ? (
+                                        <div className="p-3 bg-gray-100 rounded text-gray-500 text-center font-bold">{UI_TEXT.fixedPasta[language]}</div>
+                                    ) : isSesame ? (
+                                        <div className="p-3 bg-gray-100 rounded text-gray-500 text-center font-bold">{UI_TEXT.fixedRisotto[language]}</div>
+                                    ) : (
+                                        <div className="flex gap-2">
+                                            <button
+                                                className={`flex-1 py-2 rounded-lg border-2 ${mainType === 'Pasta' ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold' : 'border-gray-200'}`}
+                                                onClick={() => setMainType('Pasta')}
+                                            >
+                                                {UI_TEXT.pasta[language]}
+                                            </button>
+                                            <button
+                                                className={`flex-1 py-2 rounded-lg border-2 ${mainType === 'Risotto' ? 'border-blue-500 bg-blue-50 text-blue-700 font-bold' : 'border-gray-200'}`}
+                                                onClick={() => setMainType('Risotto')}
+                                            >
+                                                {UI_TEXT.risotto[language]}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            
+                            {isDrinkCategory && (
+                                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    {isCustomizableDrink ? (
+                                        <React.Fragment>
+                                            <DrinkCustomizer 
+                                                label={UI_TEXT.sugar[language]}
+                                                options={SUGAR_LEVELS} 
+                                                value={drinkSugar} 
+                                                onChange={setDrinkSugar} 
+                                                t={t}
+                                            />
+                                            <DrinkCustomizer 
+                                                label={UI_TEXT.ice[language]}
+                                                options={getIceOptions(item.iceConfig)} 
+                                                value={drinkIce} 
+                                                onChange={setDrinkIce} 
+                                                t={t}
+                                            />
+                                        </React.Fragment>
+                                    ) : (
+                                        <div className="text-center text-gray-500 text-sm font-bold py-2">
+                                            {UI_TEXT.fixedSugarIce[language]}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {showSetOptions && (
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">{UI_TEXT.addons[language]}</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {ADDONS.map(addon => (
+                                            <button
+                                                key={addon.id}
+                                                onClick={() => toggleAddon(addon.id)}
+                                                className={`p-2 rounded border text-left text-sm ${selectedAddons.includes(addon.id) ? 'bg-green-50 border-green-500 text-green-700' : 'border-gray-200'}`}
+                                            >
+                                                <div className="flex justify-between">
+                                                    <span>{t(addon)}</span>
+                                                    <span>+${addon.price}</span>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {showSetOptions && (
+                                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                    <label className="block text-sm font-bold text-gray-800 mb-2">{UI_TEXT.upgradeSet[language]}</label>
+                                    <select 
+                                        className="w-full p-2 border border-gray-300 rounded-lg mb-4 text-gray-800 font-medium"
+                                        value={selectedSet}
+                                        onChange={(e) => setSelectedSet(e.target.value)}
+                                    >
+                                        {SET_OPTIONS.map(opt => (
+                                            <option key={opt.id} value={opt.id}>
+                                                {t(opt)} ({opt.price > 0 ? `+$${opt.price}` : ''})
+                                            </option>
+                                        ))}
+                                    </select>
+
+                                    {selectedSet !== 'none' && (
+                                        <div className="space-y-4 animate-fade-in pl-1">
+                                            {currentSetConfig?.needsDrink15 && (
+                                                <div className="border-l-2 border-blue-200 pl-3">
+                                                    <label className="text-xs font-bold text-gray-500 uppercase">{UI_TEXT.selectDrink15[language]}</label>
+                                                    <div className="grid grid-cols-2 gap-2 mt-1 mb-2">
+                                                        {SET_CHOICE_LISTS.drinks_15.map(d => (
+                                                            <button 
+                                                                key={d.id}
+                                                                onClick={() => setSetDrink15(d.id)}
+                                                                className={`text-xs p-2 rounded border text-left ${setDrink15 === d.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600'}`}
+                                                            >
+                                                                <div className="font-bold">{t(d)}</div>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                    {isSetDrink15Custom && (
+                                                        <div className="bg-white p-2 rounded border border-gray-200 mt-2">
+                                                            {!isSetDrink15Binary && (
+                                                                <DrinkCustomizer label={UI_TEXT.sugar[language]} options={SUGAR_LEVELS} value={setDrink15Sugar} onChange={setSetDrink15Sugar} t={t} />
+                                                            )}
+                                                            <DrinkCustomizer 
+                                                                label={UI_TEXT.ice[language]} 
+                                                                options={isSetDrink15Binary ? BINARY_ICE_LEVELS : ICE_LEVELS} 
+                                                                value={setDrink15Ice} 
+                                                                onChange={setSetDrink15Ice} 
+                                                                t={t} 
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {currentSetConfig?.needsSnack && (
+                                                <div>
+                                                    <label className="text-xs font-bold text-gray-500 uppercase">{UI_TEXT.selectSnack[language]}</label>
+                                                    <select 
+                                                        className="w-full p-2 mt-1 text-sm border rounded"
+                                                        value={setSnack}
+                                                        onChange={(e) => setSetSnack(e.target.value)}
+                                                    >
+                                                        {SET_CHOICE_LISTS.snacks_B.map(s => (
+                                                            <option key={s.id} value={s.id}>{t(s)}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            )}
+
+                                            {currentSetConfig?.needsDrink50 && (
+                                                <div className="border-l-2 border-purple-200 pl-3">
+                                                    <label className="text-xs font-bold text-gray-500 uppercase">{UI_TEXT.selectDrink50[language]}</label>
+                                                    <select 
+                                                        className="w-full p-2 mt-1 text-sm border rounded mb-2"
+                                                        value={setDrink50}
+                                                        onChange={(e) => handleSetDrink50Change(e.target.value)}
+                                                    >
+                                                        {SET_CHOICE_LISTS.drinks_50.map(d => (
+                                                            <option key={d.id} value={d.id}>{t(d)}</option>
+                                                        ))}
+                                                    </select>
+                                                    
+                                                    {selectedSetDrink50Obj?.hasCreamer && (
+                                                        <div className="bg-yellow-50 p-2 rounded text-xs text-yellow-800 border border-yellow-200 flex gap-2 mb-2">
+                                                            <MilkOff size={12} className="text-yellow-600 flex-shrink-0" />
+                                                            <span className="font-bold">{UI_TEXT.creamerWarning[language]}</span>
+                                                        </div>
+                                                    )}
+
+                                                    {isSetDrink50Custom && (
+                                                        <div className="bg-white p-2 rounded border border-gray-200">
+                                                            <DrinkCustomizer label={UI_TEXT.sugar[language]} options={SUGAR_LEVELS} value={setDrink50Sugar} onChange={setSetDrink50Sugar} t={t} />
+                                                            <DrinkCustomizer 
+                                                                label={UI_TEXT.ice[language]} 
+                                                                options={getIceOptions(selectedSetDrink50Obj.iceConfig)} 
+                                                                value={setDrink50Ice} 
+                                                                onChange={setSetDrink50Ice} 
+                                                                t={t} 
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                            
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">{UI_TEXT.specialRequest[language]}</label>
+                                <textarea 
+                                    className="w-full border rounded-lg p-2 text-sm" 
+                                    placeholder={UI_TEXT.notePlaceholder[language]}
+                                    value={note}
+                                    onChange={(e) => setNote(e.target.value)}
+                                    rows={2}
+                                />
+                            </div>
+
+                        </div>
+
+                        <div className="p-4 border-t bg-gray-50 sticky bottom-0">
+                            <button 
+                                onClick={handleConfirm}
+                                className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 transition flex justify-between px-6 items-center"
+                            >
+                                <span>{UI_TEXT.addToOrder[language]}</span>
+                                <span className="bg-blue-800 px-3 py-1 rounded-lg text-sm">${calculateTotal()}</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const StaffReceipt = ({ cart, tableNumber, onReset }) => {
+            const total = cart.reduce((sum, item) => {
+                let itemTotal = item.price;
+                item.selectedAddons?.forEach(a => itemTotal += a.price);
+                if (item.selectedSet) itemTotal += item.selectedSet.price;
+                return sum + itemTotal;
+            }, 0);
+
+            const getOrderText = (obj, lang) => {
+                if (!obj) return '';
+                if (lang === 'en') return obj.name || obj.en;
+                if (lang === 'jp') return obj.nameJp || obj.jp || obj.name;
+                if (lang === 'ko') return obj.nameKo || obj.ko || obj.name;
+                return obj.nameTw || obj.tw;
+            };
+
+            const renderDrinkDetails = (drinkData, orderLang) => {
+                if (!drinkData) return null;
+                if (!drinkData.sugar && !drinkData.ice) {
+                    return <span className="text-gray-400 text-xs ml-1">(Fixed)</span>;
+                }
+                const s = drinkData.sugar?.nameTw || '-';
+                const i = drinkData.ice?.nameTw || '-';
+                const sUser = getOrderText(drinkData.sugar, orderLang);
+                const iUser = getOrderText(drinkData.ice, orderLang);
+                
+                return (
+                    <div className="text-xs font-bold text-blue-600 ml-1">
+                        <span>[{s}, {i}]</span>
+                        {orderLang !== 'tw' && <span className="text-blue-400 ml-1">({sUser}, {iUser})</span>}
+                    </div>
+                );
+            };
+
+            return (
+                <div className="max-w-2xl mx-auto bg-white p-8 shadow-2xl rounded-xl border-t-8 border-blue-600 my-8">
+                    <div className="text-center border-b pb-4 mb-4">
+                        <h1 className="text-3xl font-bold text-gray-800">ORDER TICKET</h1>
+                        <div className="text-gray-500 mt-1">SHARK SHARK PASTA</div>
+                        <div className="mt-4 inline-block bg-black text-white px-6 py-2 rounded-full text-2xl font-mono">
+                            TABLE: {tableNumber || 'Takeout'}
+                        </div>
+                        <div className="text-sm text-gray-400 mt-2">{new Date().toLocaleString()}</div>
+                    </div>
+
+                    <div className="space-y-6">
+                        {cart.map((item, idx) => (
+                            <div key={idx} className="border-b pb-4 border-dashed border-gray-300">
+                                <div className="flex justify-between items-start">
+                                    <div>
+                                        <div className="font-bold text-lg text-gray-800">{item.nameTw}</div>
+                                        {item.orderLanguage !== 'tw' && (
+                                            <div className="text-gray-600 font-medium text-sm">
+                                                {getOrderText(item, item.orderLanguage)}
+                                            </div>
+                                        )}
+                                        
+                                        {item.mainCustomization && renderDrinkDetails(item.mainCustomization, item.orderLanguage)}
+                                        
+                                        {item.mainType !== 'Standard' && (
+                                            <div className="mt-1 text-sm bg-blue-100 text-blue-800 inline-block px-2 py-0.5 rounded">
+                                                {item.mainTypeTw}
+                                                {item.orderLanguage !== 'tw' && ` / ${item.mainType}`}
+                                            </div>
+                                        )}
+
+                                        {item.selectedAddons?.length > 0 && (
+                                            <div className="mt-2 text-sm text-gray-600">
+                                                <ul className="list-disc pl-4 space-y-1">
+                                                    {item.selectedAddons.map((addon, ai) => (
+                                                        <li key={ai}>
+                                                            + {addon.nameTw}
+                                                            {item.orderLanguage !== 'tw' && <span className="text-gray-400 text-xs ml-1">({getOrderText(addon, item.orderLanguage)})</span>}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {item.selectedSet && item.selectedSet.id !== 'none' && (
+                                            <div className="mt-3 text-sm text-purple-900 bg-purple-50 p-2 rounded border border-purple-100">
+                                                <div className="font-bold flex justify-between">
+                                                    <span>{item.selectedSet.nameTw}</span>
+                                                    {item.orderLanguage !== 'tw' && <span className="text-xs text-purple-400">{getOrderText(item.selectedSet, item.orderLanguage)}</span>}
+                                                </div>
+                                                <div className="mt-1 pl-2 border-l-2 border-purple-300 space-y-1">
+                                                    {item.setChoices?.drink && (
+                                                        <div className="text-xs">
+                                                            <span className="font-semibold">Drink:</span> {item.setChoices.drink.nameTw}
+                                                            {item.orderLanguage !== 'tw' && <span className="text-gray-500 ml-1">({getOrderText(item.setChoices.drink, item.orderLanguage)})</span>}
+                                                            {renderDrinkDetails(item.setChoices.drink, item.orderLanguage)}
+                                                        </div>
+                                                    )}
+                                                    {item.setChoices?.snack && (
+                                                        <div className="text-xs">
+                                                            <span className="font-semibold">Snack:</span> {item.setChoices.snack.nameTw}
+                                                            {item.orderLanguage !== 'tw' && <span className="text-gray-500 ml-1">({getOrderText(item.setChoices.snack, item.orderLanguage)})</span>}
+                                                        </div>
+                                                    )}
+                                                    {item.setChoices?.drink50 && (
+                                                        <div className="text-xs">
+                                                            <span className="font-semibold">Drink($50):</span> {item.setChoices.drink50.nameTw}
+                                                            {item.orderLanguage !== 'tw' && <span className="text-gray-500 ml-1">({getOrderText(item.setChoices.drink50, item.orderLanguage)})</span>}
+                                                            {renderDrinkDetails(item.setChoices.drink50, item.orderLanguage)}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {item.note && (
+                                            <div className="mt-2 text-red-600 font-bold text-sm border-l-2 border-red-500 pl-2">
+                                                Note: {item.note}
+                                            </div>
+                                        )}
+                                    </div>
+                                    
+                                    <div className="text-right">
+                                        <div className="font-mono font-bold text-lg">
+                                            ${item.price + (item.selectedAddons?.reduce((s, a) => s + a.price, 0) || 0) + (item.selectedSet?.price || 0)}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="mt-6 flex justify-between items-center pt-4 border-t-2 border-black">
+                        <span className="text-2xl font-bold">TOTAL</span>
+                        <span className="text-3xl font-bold">${total}</span>
+                    </div>
+
+                    <div className="mt-8">
+                        <button 
+                            onClick={onReset}
+                            className="w-full py-4 bg-gray-800 text-white rounded-lg hover:bg-gray-900 font-bold"
+                        >
+                            Start New Order
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [activeCategory, setActiveCategory] = useState(CATEGORIES[0].id);
+            const [language, setLanguage] = useState('en');
+            const [cart, setCart] = useState([]);
+            const [isCartOpen, setIsCartOpen] = useState(false);
+            const [selectedItem, setSelectedItem] = useState(null); 
+            const [tableNumber, setTableNumber] = useState('');
+            const [orderConfirmed, setOrderConfirmed] = useState(false);
+
+            const t = (obj) => {
+                if (!obj) return '';
+                if (language === 'en') return obj.name || obj.en;
+                if (language === 'jp') return obj.nameJp || obj.jp || obj.name;
+                if (language === 'ko') return obj.nameKo || obj.ko || obj.name;
+                return obj.nameTw || obj.tw;
+            };
+
+            const cartTotal = useMemo(() => {
+                return cart.reduce((sum, item) => {
+                    let itemTotal = item.price;
+                    item.selectedAddons?.forEach(a => itemTotal += a.price);
+                    if (item.selectedSet) itemTotal += item.selectedSet.price;
+                    return sum + itemTotal;
+                }, 0);
+            }, [cart]);
+
+            const addToCart = (item) => {
+                setCart([...cart, item]);
+                setIsCartOpen(false); 
+            };
+
+            const removeFromCart = (uniqueId) => {
+                setCart(cart.filter(item => item.uniqueId !== uniqueId));
+            };
+
+            const handleCheckout = () => {
+                if (cart.length === 0 || !tableNumber.trim()) return;
+                setOrderConfirmed(true);
+                setIsCartOpen(false);
+            };
+
+            const renderCartItemDetails = (item) => {
+                const getDrinkText = (drinkData) => {
+                    if (!drinkData || (!drinkData.sugar && !drinkData.ice)) return '';
+                    const s = t(drinkData.sugar) || '';
+                    const i = t(drinkData.ice) || '';
+                    return s && i ? `(${s}, ${i})` : '';
+                };
+
+                return (
+                    <div key={item.uniqueId} className="bg-white border rounded-lg p-3 shadow-sm relative group">
+                        <div className="flex justify-between items-start mb-1">
+                            <div className="font-bold">{t(item)}</div>
+                            <div className="font-mono font-bold">${item.price}</div>
+                        </div>
+                        
+                        {item.selectedSet && item.selectedSet.id !== 'none' && (
+                            <div className="text-xs text-purple-600 bg-purple-50 p-1 rounded mb-1">
+                                <div>+ {t(item.selectedSet)}</div>
+                                {item.setChoices?.snack && (
+                                    <div className="pl-2">• {t(item.setChoices.snack)}</div>
+                                )}
+                                {item.setChoices?.drink && (
+                                    <div className="pl-2">
+                                        • {t(item.setChoices.drink)} <span className="text-purple-400">{getDrinkText(item.setChoices.drink)}</span>
+                                    </div>
+                                )}
+                                {item.setChoices?.drink50 && (
+                                    <div className="pl-2">
+                                        • {t(item.setChoices.drink50)} <span className="text-purple-400">{getDrinkText(item.setChoices.drink50)}</span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {item.mainCustomization && (
+                            <div className="text-xs text-blue-600 mb-1">
+                                {t(item.mainCustomization.sugar)}, {t(item.mainCustomization.ice)}
+                            </div>
+                        )}
+                        
+                        {item.note && (
+                            <div className="text-xs text-red-500 mt-1 italic">"{item.note}"</div>
+                        )}
+
+                        <button 
+                            onClick={() => removeFromCart(item.uniqueId)}
+                            className="absolute -top-2 -right-2 bg-red-100 text-red-500 p-1 rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition"
+                        >
+                            <X size={14} />
+                        </button>
+                    </div>
+                );
+            };
+
+            if (orderConfirmed) {
+                return <StaffReceipt cart={cart} tableNumber={tableNumber} onReset={() => {
+                    setCart([]);
+                    setOrderConfirmed(false);
+                    setTableNumber('');
+                }} />;
+            }
+
+            return (
+                <div className="flex flex-col h-screen bg-gray-100 font-sans text-gray-800">
+                    
+                    <div className="bg-white shadow-sm sticky top-0 z-30">
+                        <div className="max-w-4xl mx-auto px-4 py-3 flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                                <div className="bg-blue-600 text-white p-2 rounded-lg">
+                                    <ChefHat size={24} />
+                                </div>
+                                <div>
+                                    <h1 className="font-bold text-lg leading-tight">Shark Shark</h1>
+                                    <div className="flex gap-2">
+                                        {LANGUAGES.map(lang => (
+                                            <button 
+                                                key={lang.code}
+                                                onClick={() => setLanguage(lang.code)}
+                                                className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+                                                    language === lang.code 
+                                                        ? 'bg-blue-100 text-blue-700 border-blue-300 font-bold' 
+                                                        : 'bg-gray-50 text-gray-500 border-gray-200'
+                                                }`}
+                                            >
+                                                {lang.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input 
+                                    type="text" 
+                                    placeholder={UI_TEXT.tablePlaceholder[language]}
+                                    className="w-20 p-2 border rounded-lg bg-gray-50 text-center text-sm"
+                                    value={tableNumber}
+                                    onChange={e => setTableNumber(e.target.value)}
+                                />
+                                <button 
+                                    className="relative p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100"
+                                    onClick={() => setIsCartOpen(true)}
+                                >
+                                    <ShoppingCart size={24} />
+                                    {cart.length > 0 && (
+                                        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center rounded-full font-bold">
+                                            {cart.length}
+                                        </span>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div className="overflow-x-auto whitespace-nowrap pb-2 hide-scrollbar border-b bg-white">
+                            <div className="flex px-4 gap-2 pt-2">
+                                {CATEGORIES.map(cat => (
+                                    <button
+                                        key={cat.id}
+                                        onClick={() => setActiveCategory(cat.id)}
+                                        className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                                            activeCategory === cat.id 
+                                                ? 'bg-blue-600 text-white shadow-md transform scale-105' 
+                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                    >
+                                        {t(cat)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex-grow overflow-y-auto p-4 max-w-4xl mx-auto w-full">
+                        <div className="bg-orange-50 border-l-4 border-orange-500 p-4 mb-6 rounded-r shadow-sm">
+                            <div className="flex items-start">
+                                <div className="flex-shrink-0">
+                                    <Store className="h-5 w-5 text-orange-600" />
+                                </div>
+                                <div className="ml-3">
+                                    <h3 className="text-sm font-bold text-orange-800 uppercase tracking-wide">{UI_TEXT.noticeTitle[language]}</h3>
+                                    <ul className="mt-2 list-disc list-inside text-sm text-orange-700 space-y-1">
+                                        <li>{UI_TEXT.noticeMin[language]}</li>
+                                        <li>{UI_TEXT.noticeCounter[language]}</li>
+                                        <li>{UI_TEXT.noticeTea[language]}</li>
+                                    </ul>
+                                    <div className="mt-3 flex items-center gap-2 text-xs text-orange-600 bg-orange-100 p-2 rounded w-fit">
+                                        <AlertTriangle size={14} />
+                                        <span>{UI_TEXT.noticeAi[language]}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <h2 className="text-2xl font-bold text-gray-800">{t(CATEGORIES.find(c => c.id === activeCategory))}</h2>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-20">
+                            {MENU_ITEMS[activeCategory]?.map(item => (
+                                <div 
+                                    key={item.id} 
+                                    className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition flex justify-between items-center cursor-pointer"
+                                    onClick={() => setSelectedItem({ ...item, categoryType: CATEGORIES.find(c => c.id === activeCategory).type })}
+                                >
+                                    <div>
+                                        <h3 className="font-bold text-lg">{t(item)}</h3>
+                                        {language !== 'tw' && <p className="text-sm text-gray-400">{item.nameTw}</p>}
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <span className="text-xl font-bold text-blue-600">${item.price}</span>
+                                        <button className="mt-2 bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold">
+                                            +
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {selectedItem && (
+                        <ItemModal 
+                            item={selectedItem}
+                            categoryType={selectedItem.categoryType}
+                            onClose={() => setSelectedItem(null)}
+                            onAddToCart={addToCart}
+                            language={language}
+                            t={t}
+                        />
+                    )}
+
+                    {isCartOpen && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex justify-end">
+                            <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl animate-slide-in-right">
+                                <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                                    <h2 className="text-xl font-bold flex items-center gap-2">
+                                        <ShoppingCart size={20} /> {UI_TEXT.cartTitle[language]}
+                                    </h2>
+                                    <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-gray-200 rounded-full">
+                                        <X size={24} />
+                                    </button>
+                                </div>
+
+                                <div className="flex-grow overflow-y-auto p-4 space-y-4">
+                                    {cart.length === 0 ? (
+                                        <div className="text-center text-gray-400 mt-20">
+                                            <Coffee size={48} className="mx-auto mb-4 opacity-20" />
+                                            <p>{UI_TEXT.emptyCart[language]}</p>
+                                        </div>
+                                    ) : (
+                                        cart.map(item => renderCartItemDetails(item))
+                                    )}
+                                </div>
+
+                                <div className="p-4 border-t bg-gray-50">
+                                    <div className="flex justify-between items-center mb-4 text-xl font-bold">
+                                        <span>{UI_TEXT.total[language]}</span>
+                                        <span>${cartTotal}</span>
+                                    </div>
+                                    
+                                    {!tableNumber.trim() && (
+                                        <div className="mb-2 text-xs text-red-500 font-bold text-center animate-pulse flex justify-center items-center gap-1">
+                                            <AlertTriangle size={12}/> {UI_TEXT.plsEnterTable[language]}
+                                        </div>
+                                    )}
+
+                                    <button 
+                                        onClick={handleCheckout}
+                                        disabled={cart.length === 0 || !tableNumber.trim()}
+                                        className={`w-full py-4 rounded-xl font-bold text-lg text-white flex justify-center items-center gap-2 ${
+                                            cart.length === 0 || !tableNumber.trim() ? 'bg-gray-300 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700 shadow-lg shadow-green-200'
+                                        }`}
+                                    >
+                                        <CheckCircle size={20} />
+                                        {UI_TEXT.confirm[language]}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
